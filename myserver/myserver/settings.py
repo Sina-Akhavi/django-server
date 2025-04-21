@@ -27,6 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Authentication
+AUTH_USER_MODEL = 'authentication.Models.user.User'
+
 
 # Application definition
 
