@@ -74,5 +74,5 @@ class CustomTokenRefreshView(TokenRefreshView):
             return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_400_BAD_REQUEST)
         
         
-        
+
     
