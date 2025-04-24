@@ -1,47 +1,80 @@
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-from models import User
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from authentication.models import User
 from rest_framework.permissions import AllowAny
-from PIL import Image
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.views import TokenRefreshView
+from django.contrib.auth import authenticate
 
 
-class ObtainTokenView(APIView):
-    permission_classes = [AllowAny]  # Anyone can access this (for login)
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        # Check if all fields are provided
+        if not username or not email or not password:
+            return Response({"detail": "Username, email, and password are required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if user already exists
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "Username is already taken."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({"detail": "Email is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=username, email=email, password=password)
+        return Response({"detail": "User registered successfully."}, status=status.HTTP_201_CREATED)
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
 
-        # If using email instead of username
-        # Try to find user by email
-        if "@" in username:
-            try:
-                user = User.objects.get(email=username)
-            except User.DoesNotExist:
-                return Response({"detail": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            # Find user by username
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
+        if not username or not password:
+            return Response({"detail": "Username and password are required."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if password matches
-        if user.check_password(password):
-            # Generate JWT tokens (access and refresh)
-            refresh = RefreshToken.for_user(user)
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response({"detail": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return Response({
+            "access": access_token,
+            "refresh": refresh_token
+        })
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    permission_classes = [AllowAny]  # Make this accessible for everyone (no authentication needed)
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            
+            print(f"Refresh token received for user: {refresh['user_id']}")
+
             access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
+            return Response({"access": access_token}, status=status.HTTP_200_OK)
 
-            # Send tokens in response
-            return Response({
-                "access": access_token,
-                "refresh": refresh_token
-            })
-        else:
-            return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
-
+        except TokenError:
+            return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_400_BAD_REQUEST)
+        

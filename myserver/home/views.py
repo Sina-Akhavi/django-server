@@ -1,8 +1,10 @@
-from django.shortcuts import render
-
+from django.http import HttpResponse
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 
 class HomeView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+    
     def get(self, request):
-        return render(request, 'home/index.html')
+        return HttpResponse('Hi Dear!!')
