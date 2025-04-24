@@ -1,70 +1,47 @@
-from authentication.Models.user import User
-from django.contrib.auth import authenticate
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from models import User
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from PIL import Image
 
-class LoginAPIView(APIView):
-    permission_classes = [AllowAny]
+
+class ObtainTokenView(APIView):
+    permission_classes = [AllowAny]  # Anyone can access this (for login)
 
     def post(self, request):
-        identifier = request.data.get('identifier')
+        username = request.data.get('username')
         password = request.data.get('password')
-        
-        try:
-            user = User.objects.get(email=identifier)
-        except User.DoesNotExist:
+
+        # If using email instead of username
+        # Try to find user by email
+        if "@" in username:
             try:
-                user = User.objects.get(username=identifier)
+                user = User.objects.get(email=username)
             except User.DoesNotExist:
-                return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
-        
-        user = authenticate(username=user.username, password=password)
-        if user is not None:
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({'token': token.key}, status=status.HTTP_200_OK)
-        return Response({'error': 'Invalid credentials.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Find user by username
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
 
-class RegisterAPIView(APIView):
-    permission_classes = [AllowAny]
+        # Check if password matches
+        if user.check_password(password):
+            # Generate JWT tokens (access and refresh)
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
 
-    def post(self, request):
-        username  = request.data.get('username')
-        email     = request.data.get('email')
-        password1 = request.data.get('password1')
-        password2 = request.data.get('password2')
-        
-        if password1 != password2:
-            return Response({'error': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(username=username).exists():
-            return Response({'error': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(email=email).exists():
-            return Response({'error': 'Email already in use.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = User.objects.create_user(username=username, email=email, password=password1)
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({'message': 'User created successfully.', 'token': token.key}, status=status.HTTP_201_CREATED)
+            # Send tokens in response
+            return Response({
+                "access": access_token,
+                "refresh": refresh_token
+            })
+        else:
+            return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
 
-class UpdateUserAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request):
-        user = request.user
-        profile_picture = request.FILES.get('profile_picture')
-        phone_number = request.data.get('phone_number')
-        city = request.data.get('city')
-        country = request.data.get('country')
-
-        if profile_picture:
-            user.profile_picture = profile_picture
-        if phone_number:
-            user.phone_number = phone_number
-        if city:
-            user.city = city
-        if country:
-            user.country = country
-        
-        user.save()
-        return Response({'message': 'User updated successfully.'}, status=status.HTTP_200_OK)
