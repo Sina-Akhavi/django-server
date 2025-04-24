@@ -6,13 +6,13 @@ from rest_framework.response import Response
 from rest_framework import status
 
 class HomeView(APIView):
-    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         return HttpResponse('Hi Dear!!')
 
 class GetUser(APIView):
-    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         try:
