@@ -55,7 +55,8 @@ class LoginView(APIView):
 
         return Response({
             "access": access_token,
-            "refresh": refresh_token
+            "refresh": refresh_token,
+            "username": username
         })
         
           
@@ -103,7 +104,6 @@ class PasswordResetRequestView(APIView):
             recipient_list=[email],
             fail_silently=False,
         )
-        
         return Response({"detail": "If the email is registered, password reset instructions have been sent."},
                         status=status.HTTP_200_OK)
 
