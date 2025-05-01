@@ -35,6 +35,7 @@ class UpdateUserInfo(APIView):
             last_name = request.data.get('last_name')
             username = request.data.get('username')
             email = request.data.get('email')
+            phone = request.data.get('phoneNumber')
             
             if city is not None:
                 user.city = city
@@ -48,6 +49,8 @@ class UpdateUserInfo(APIView):
                 user.username = username
             if email is not None:
                 user.email = email
+            if phone is not None:
+                user.phone_number = phone
             
             user.save()
             
