@@ -53,6 +53,17 @@ INSTALLED_APPS = [
     'corsheaders',
 ]
 
+# ...existing code...
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'akhavi.sina.2001@gmail.com'         # Replace with your Gmail address
+EMAIL_HOST_PASSWORD = 'zgjg tuwk dvni mewx'
+DEFAULT_FROM_EMAIL = 'akhavi.sina.2001@gmail.com'
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

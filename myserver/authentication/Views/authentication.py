@@ -7,6 +7,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.urls import reverse  # optional for constructing URLs
 
 
 class RegisterView(APIView):
@@ -72,7 +75,60 @@ class CustomTokenRefreshView(TokenRefreshView):
 
         except TokenError:
             return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        
 
-    
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Prevent email enumeration by always returning success
+            return Response({"detail": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        
+        token = default_token_generator.make_token(user)
+        # Construct the URL for resetting the password. In a real app make sure this points to your frontend.
+        reset_link = f"http://localhost:3000/reset-password?uid={user.pk}&token={token}"
+        
+        send_mail(
+            subject="Password Reset Request",
+            message=f"Click the link to reset your password: {reset_link}",
+            from_email="akhavi.sina.2001@gmail.com",
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        
+        return Response({"detail": "If the email is registered, password reset instructions have been sent."},
+                        status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uid = request.data.get("uid")
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        
+        if not uid or not token or not new_password:
+            return Response({"detail": "UID, token, and new password are required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(pk=uid)
+        except User.DoesNotExist:
+            return Response({"detail": "Invalid UID."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not default_token_generator.check_token(user, token):
+            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+        
+        return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
