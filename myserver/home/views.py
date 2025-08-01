@@ -4,6 +4,9 @@ from rest_framework.views import APIView
 from home.services import UserSerializer
 from rest_framework.response import Response
 from rest_framework import status
+import csv
+import os
+from django.conf import settings
 
 class HomeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -57,3 +60,45 @@ class UpdateUserInfo(APIView):
             return Response({"detail": "User information updated successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)    
+
+
+class ForecastPricesByARIMA(APIView):
+    # permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            forecast_days = int(request.query_params.get('forecast_days', 1))
+            csv_path = settings.ARIMA_CSV_PATH
+            rows = []
+            with open(csv_path, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for i, row in enumerate(reader):
+                    if i >= forecast_days:
+                        break
+                    row_with_index = {'index': i + 1}
+                    row_with_index.update(row)
+                    rows.append(row_with_index)
+            return Response(rows, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ForecastPricesByLSTM(APIView):
+    # permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            forecast_days = int(request.query_params.get('forecast_days', 1))
+            csv_path = settings.LSTM_CSV_PATH
+            rows = []
+            with open(csv_path, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for i, row in enumerate(reader):
+                    if i >= forecast_days:
+                        break
+                    row_with_index = {'index': i + 1}
+                    row_with_index.update(row)
+                    rows.append(row_with_index)
+            return Response(rows, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
